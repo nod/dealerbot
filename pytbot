@@ -1,0 +1,299 @@
+#!/usr/bin/env python
+#
+#    Copyright (C) 2004-2007 Paul Rotering
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+
+from twisted.words.protocols import irc
+
+from twisted.internet import reactor, protocol
+
+import ConfigParser
+import pickle
+import sys
+import time
+
+import log
+from tourney import Tourney
+from command import Command
+
+class TBot(irc.IRCClient):
+    ''' An IRC Texas Holdem tournament  dealer'''
+
+    def pubout(self, msg):
+        log.logger.debug('TBot.pubout()')
+        
+        self.say(self.channel, msg)
+
+        # strip color codes
+        msg = stripcolors(msg)
+
+        log.chatlog.info('[PUB->]%s' % (msg,))
+
+    def privout(self, user, msg):
+        log.logger.debug('TBot.privout()')
+        
+        self.msg(user, msg)
+        #self.cprivmsg(self.channel, user, msg)
+        
+        # strip color codes
+        msg = stripcolors(msg)
+
+        log.chatlog.info('[PRV->%s]%s' % (user, msg))
+
+    def noteout(self, user, msg):
+        self.notice(user, msg)
+        #self.cnotice(self.channel, user, msg)
+
+        # strip color codes
+        msg = stripcolors(msg)
+
+        log.chatlog.info('[NTE->%s]%s' % (user, msg))
+
+    def __init__(self):
+        self.restorefile = ''
+
+        conf = ConfigParser.SafeConfigParser()
+        
+        try:
+            conf.readfp(open('pytbot.ini'))
+        except IOError, msg:
+            print "Cant open config file: ", msg
+            sys.exit(1)
+            
+        if conf.has_option('IRC', 'nick'):
+            self.nickname = conf.get('IRC', 'nick')
+        if conf.has_option('IRC', 'idpass'):
+            self.idpass = conf.get('IRC', 'idpass')
+        if conf.has_option('IRC', 'idnick'):
+            self.idnick = conf.get('IRC', 'idnick')
+
+        if conf.has_option('IRC', 'opernick'):
+            self.opernick = conf.get('IRC', 'opernick')
+        if conf.has_option('IRC', 'operpass'):
+            self.operpass = conf.get('IRC', 'operpass')
+
+        if conf.has_option('IRC', 'ircpass'):
+            self.password = conf.get('IRC', 'ircpass')
+        if conf.has_option('IRC', 'minusmodes'):
+            self.minusmodes = conf.get('IRC', 'minusmodes')
+        if conf.has_option('IRC', 'plusmodes'):
+                self.plusmodes = conf.get('IRC', 'plusmodes')
+
+        if conf.has_option('version', 'name'):
+            self.versionName = conf.get('version', 'name')
+        if conf.has_option('version', 'number'):
+            self.versionNum = conf.get('version', 'number')
+
+
+        if conf.has_option('restore', 'filename'):
+            self.restorefile = conf.get('restore', 'filename')
+
+        self.versionEnv = sys.platform
+
+        if(self.restorefile):
+            try:
+                tf = file(self.restorefile, 'r')
+            except IOError:
+                print 'Problem opening backup'
+                sys.exit(1)
+            tstr = ''.join(tf.readlines())
+            self.tourney = pickle.loads(tstr)
+            self.tourney.pubout = self.pubout
+            self.tourney.privout = self.privout
+            self.tourney.noteout = self.noteout
+
+        else:
+            self.tourney = Tourney(self.pubout, self.privout, self.noteout)
+
+    #### connection callbacks
+    def connectionMade(self):
+        irc.IRCClient.connectionMade(self)
+        log.logger.info("[connected at %s]" %\
+                        time.asctime(time.localtime(time.time())))
+
+    def connectionLost(self, reason):
+        irc.IRCClient.connectionLost(self, reason)
+        log.logger.info("[disconnected at %s:%s]" %\
+              (time.asctime(time.localtime(time.time())), reason))
+
+    #### event callbacks
+    def signedOn(self):
+        """Called when bot has succesfully signed on to server."""
+
+        self.join(self.factory.channel)
+
+    def joined(self, channel):
+        """This will get called when the bot joins the channel."""
+        
+        log.logger.info('[I have joined %s]' % (channel,))
+        self.channel = channel
+
+        if hasattr(self, 'opernick') and hasattr(self, 'operpass'):
+            self.sendLine('OPER %s %s' % (self.opernick, self.operpass))
+        
+        # Identify to nickserv
+        if hasattr(self, 'idnick') and hasattr(self, 'idpass'):
+            self.privout('%s' % (self.idnick,), 'identify %s' % (self.idpass,))
+
+        # Set modes
+        if hasattr(self, 'plusmodes'):
+            self.mode(channel, True, self.plusmodes)
+        if hasattr(self, 'minusmodes'):
+            self.mode(channel, False, self.minusmodes)
+
+    def noticed(self, user, channel, msg):
+        """This will get called when the bot receives a NOTICE."""
+        
+        user = user.split('!', 1)[0]
+        log.chatlog.info('[NTE<-]<%s> %s' % (user, msg))
+
+    def privmsg(self, user, channel, msg):
+        """This will get called when the bot receives a message."""
+
+        user = user.split('!', 1)[0]
+        ###print "<%s>[%s] %s" % (user, channel, msg)
+
+        # Private message to me
+        if channel.upper() == self.nickname.upper():
+            log.chatlog.info('[PRV<-]<%s> %s' % (user, msg))
+
+        # Public message
+        else:
+            log.chatlog.info('[PUB<-]<%s> %s' % (user, msg))
+
+        l = msg.strip().split()
+
+        if len(l) > 1 and l[0] == 'p':
+
+            cmd = Command(user, l)
+            if cmd.arg == 'ERROR':
+                self.privout(user,'Bad or missing argument')
+            else:
+                log.logger.debug('Tourneybot:%s' % cmd)
+
+                #FIXME: This should never be seen here as handflag is
+                #dependent on the game.
+                if cmd.handsflag:
+                    self.tourney.handsflag = True
+                else:
+                    self.tourney.handsflag = False
+
+                self.tourney.incmd(cmd)
+
+        else:
+            #log.logger.debug('No command in message:%s' % msg)
+            pass
+        
+    def action(self, user, channel, msg):
+        """This will get called when the bot sees someone do an action."""
+        
+        user = user.split('!', 1)[0]
+        log.chatlog.info('* %s %s' % (user, msg))
+
+    def userJoined(self, user, channel):
+        """Called when I see another user joining a channel.
+        """
+
+        user = user.split('!', 1)[0]
+        log.chatlog.info('%s joined %s' % (user, channel))
+
+    def userLeft(self, user, channel):
+        """Called when I see another user leaving a channel.
+        """
+
+        user = user.split('!', 1)[0]
+        log.chatlog.info('%s has left %s' % (user, channel))
+
+    def userRenamed(self, oldname, newname):
+        """A user changed their name from oldname to newname.
+        """
+
+        log.chatlog.info('%s is now known as %s' % (oldname, newname))
+
+    def cprivmsg(self, chan, user, message):
+
+        fmt = "CPRIVMSG %s %s :%%s" % (user, chan)
+        self.sendLine(fmt % (message,))
+
+    def cnotice(self, chan, user, message):
+
+        fmt = "CNOTICE %s %s :%%s" % (user, chan)
+        self.sendLine(fmt % (message,))
+
+class TBotFactory(protocol.ClientFactory):
+    """A factory for tbots.
+
+    A new protocol instance will be created each time we connect to the server.
+    """
+
+    # the class of the protocol to build when new connection is made
+    protocol = TBot
+
+    def __init__(self, channel, filename):
+        self.channel = channel
+        self.filename = filename
+
+    def clientConnectionLost(self, connector, reason):
+        """If we get disconnected, reconnect to server."""
+
+        connector.connect()
+
+    def clientConnectionFailed(self, connector, reason):
+        log.logger.critical('connection failed: %s', (reason,))
+        reactor.stop()
+
+def stripcolors(inmsg):
+
+    # strip color codes
+    inmsg = inmsg.replace("\x02\x0301,00", '')
+    inmsg = inmsg.replace("\x02\x0302,00", '')
+    inmsg = inmsg.replace("\x02\x0303,00", '')
+    inmsg = inmsg.replace("\x02\x0304,00", '')
+    inmsg = inmsg.replace("\x0F", '')
+    return inmsg
+
+
+if __name__ == '__main__':
+
+    conf = ConfigParser.SafeConfigParser()
+        
+    try:
+        conf.readfp(open('pytbot.ini'))
+    except IOError, msg:
+        print "Cant open config file: ", msg
+        sys.exit(1)
+            
+    channel = conf.get('IRC', 'channel')
+    host = conf.get('IRC', 'host')
+    port  = conf.getint('IRC', 'port')
+
+    localport = None
+    localaddr = None
+    if conf.has_option('IRC', 'localport'):
+        localport  = conf.getint('IRC', 'localport')
+    if conf.has_option('IRC', 'localaddr'):
+        localaddr  = conf.get('IRC', 'localaddr')
+
+    # create factory protocol and application
+    f = TBotFactory(channel, 'UNUSED')
+
+    # connect factory to this host and port
+    if localaddr and localport:
+        reactor.connectTCP(host, port, f, bindAddress=(localaddr, localport))
+    else:
+        reactor.connectTCP(host, port, f)
+    # run bot
+    reactor.run()
