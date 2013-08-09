@@ -36,7 +36,7 @@ make this run today.  He deserves all the credit.
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-Please send any questions or comments to protering@users.sourceforge.net.
+Please send any questions or comments to [redacted so he doesn't get spammed]
 
 Modify pytbot.ini to point to the  IRC server you want to use.
 
