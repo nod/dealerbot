@@ -4133,3 +4133,49 @@ uxtx has left #tourney
 [PUB<-]<norf> p check
 [PUB->]norf checks.
 [PUB->]nixon is next to act. (0 to call)
+[PUB<-]<nixon> p check
+[PUB->]nixon checks.
+[PUB->]Board:      045h 036c 024d 028d 043h 
+[PUB->]norf is next to act. (0 to call)
+[PUB<-]<norf> p check
+[PUB->]norf checks.
+[PUB->]nixon is next to act. (0 to call)
+[PUB<-]<nixon> p check
+[PUB->]nixon checks.
+[PUB->]Board:      045h 036c 024d 028d 043h 
+[PUB->]Players' hands:
+[PUB->]nixon           : 033c 02Qd
+[PUB->]norf            : 02Kd 03Tc
+[PUB->]High: nixon wins $320 with One Pair (3 3 Q 8 6).
+[PUB->]The blinds are currently $80 and $160 and will double in 188 seconds.
+[PUB->]Game #28, 2 players.  Dealing Holdem high
+[PUB->]  nixon       2900   B-norf        1100
+[PUB->]norf blinds $80.  Pot is now $80.
+[PUB->]nixon blinds $160.  Pot is now $240.
+[PRV->nixon]Your hole cards are: 029d 018s
+[PRV->norf]Your hole cards are: 024d 014s
+[PUB->]norf is next to act. (80 to call)
+[PUB<-]<norf> p call
+[PUB->]norf calls $80.  Pot is now $320.
+[PUB->]nixon is next to act. (0 to call)
+[PUB<-]<nixon> p check
+[PUB->]nixon checks.
+[PUB->]Board:      013s 03Tc 032c 
+[PUB->]nixon is next to act. (0 to call)
+[PUB<-]<nixon> p check
+[PUB->]nixon checks.
+[PUB->]norf is next to act. (0 to call)
+[PUB<-]<norf> p check
+[PUB->]norf checks.
+[PUB->]Board:      013s 03Tc 032c 017s 
+[PUB->]nixon is next to act. (0 to call)
+[PUB<-]<nixon> p bet 160
+[PUB->]nixon bets $160.  Pot is now $480.
+[PUB->]norf is next to act. (160 to call)
+[PUB<-]<norf> p call
+[PUB->]norf calls $160.  Pot is now $640.
+[PUB->]Board:      013s 03Tc 032c 017s 022d 
+[PUB->]nixon is next to act. (0 to call)
+[PUB<-]<nixon> p bet 200
+[PUB->]nixon bets $200.  Pot is now $840.
+[PUB->]norf is next to act. (200 to call)

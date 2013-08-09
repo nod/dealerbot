@@ -9,6 +9,7 @@ make this run today.  He deserves all the credit.
 
 - create a virtualenv, because REASONS
 - pip install -r requirements.all
+- edit pytbot.ini to set your irc server to connect to, etc
 - ./pytbot
 - PROFIT!
 
